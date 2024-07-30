@@ -196,8 +196,12 @@ def main():
             if selected_book and selected_format:
                 try:
                     filename = export_annotations(selected_book, selected_format, book_details[selected_book][0])
-                    print(f"Annotations exported to {filename}")
-                    logging.info(f"Annotations exported to {filename}")
+                    if selected_format == 'md':
+                        print(f"Annotations copied to clipboard")
+                        logging.info(f"Annotations copied to clipboard")
+                    else:
+                        print(f"Annotations exported to {filename}")
+                        logging.info(f"Annotations exported to {filename}")
                     break
                 except (ValueError, sqlite3.Error, IOError) as e:
                     print(f"Error exporting annotations: {e}")
