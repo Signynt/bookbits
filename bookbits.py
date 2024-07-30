@@ -5,6 +5,7 @@ import sqlite3
 import logging
 from typing import Dict, List, Tuple
 from simple_term_menu import TerminalMenu
+import pyperclip
 
 # Constants
 ANNOTATION_DB_PATTERN = "~/Library/Containers/com.apple.iBooksX/Data/Documents/AEAnnotation/AEAnnotation*.sqlite"
@@ -120,13 +121,14 @@ def export_annotations(asset_id: str, format: str, book_title: str) -> str:
                                   "Notes": note.replace("\n", " ") if note else ""}
                                  for highlight, note in annotations)
         else:  # markdown
-            with open(filename, 'w') as mdfile:
-                mdfile.write(f"# Highlights - {book_title} \n\n")
-                for highlight, note in annotations:
-                    mdfile.write(f"{highlight}\n")
-                    if note:
-                        mdfile.write(f"*{note}*\n")
-                    mdfile.write("---\n")
+            ##with open(filename, 'w') as mdfile:
+            output_markdown = ""
+            for highlight, note in annotations:
+                output_markdown += "\n".join([f"> {line}" for line in highlight.split("\n")])
+                output_markdown += f"\n\n"
+                if note:
+                    output_markdown += f"{note}\n\n"
+                pyperclip.copy(output_markdown)
     except IOError as e:
         logging.error(f"Error writing to file: {e}")
         raise
