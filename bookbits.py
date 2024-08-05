@@ -6,6 +6,8 @@ import logging
 from typing import Dict, List, Tuple
 from simple_term_menu import TerminalMenu
 import pyperclip
+import re
+from typing import List
 
 # Constants
 ANNOTATION_DB_PATTERN = "~/Library/Containers/com.apple.iBooksX/Data/Documents/AEAnnotation/AEAnnotation*.sqlite"
@@ -14,6 +16,57 @@ SUPPORTED_FORMATS = ['csv', 'md']
 
 # Set up logging
 logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
+
+import re
+
+def parse_cfi(cfi):
+    """
+    Parses an EPUB CFI into a list of components.
+    """
+    # Remove the leading "epubcfi(" and trailing ")"
+    cfi = cfi[7:-1]
+    cfi = cfi.replace(",", "")
+    print(cfi)
+    return re.split(r'(/|:|,)', cfi)
+
+def cfi_to_tuple(cfi):
+    """
+    Converts a CFI string into a tuple that can be used for sorting.
+    """
+    parts = parse_cfi(cfi)
+    result = []
+    for part in parts:
+        if part.isdigit():
+            result.append(int(part))
+        elif part in ('/', ':', ','):
+            result.append(part)
+        else:
+            result.append(part)
+    return tuple(result)
+
+def sort_epubcfi(cfis):
+    """
+    Sorts a list of EPUB CFI strings.
+    """
+    return sorted(cfis, key=cfi_to_tuple)
+
+# Example usage:
+cfis = [
+    "epubcfi(/6/16[chapter1]!/4,/174/2/1:0,/180/1:222)",
+    "epubcfi(/6/16[chapter1]!/4/232/1,:3,:1022)",
+    "epubcfi(/6/18[chapter2]!/4,/46/1:0,/48/1:497)",
+    "epubcfi(/6/18[chapter2]!/4/138/1,:0,:431)",
+    "epubcfi(/6/18[chapter2]!/4/142/3,:554,:970)",
+    "epubcfi(/6/18[chapter2]!/4/142/3,:971,:1164)",
+    "epubcfi(/6/20[chapter3]!/4/728/1,:74,:262)",
+    "epubcfi(/6/20[chapter3]!/4/728/1,:263,:372)",
+    "epubcfi(/6/20[chapter3]!/4,/742/3:71,/744[ch3.6]/2/1:0)"
+]
+
+sorted_cfis = sort_epubcfi(cfis)
+for cfi in sorted_cfis:
+    print(cfi)
+
 
 def get_db_path(pattern: str) -> str:
     """
@@ -102,10 +155,15 @@ def export_annotations(asset_id: str, format: str, book_title: str) -> str:
     try:
         with sqlite3.connect(get_db_path(ANNOTATION_DB_PATTERN)) as conn:
             cursor = conn.cursor()
-            cursor.execute('''SELECT ZANNOTATIONSELECTEDTEXT, ZANNOTATIONNOTE
+            #cursor.execute('''SELECT * FROM ZAEANNOTATION WHERE ZANNOTATIONASSETID = ? AND ZANNOTATIONSELECTEDTEXT != "";''', (asset_id,))
+            cursor.execute('''SELECT ZANNOTATIONSELECTEDTEXT, ZANNOTATIONNOTE, ZANNOTATIONLOCATION
                               FROM ZAEANNOTATION
                               WHERE ZANNOTATIONASSETID = ? AND ZANNOTATIONSELECTEDTEXT != "";''', (asset_id,))
+            #print(cursor.fetchall())
+            #names = list(map(lambda x:x[0], cursor.description))
+            #print(names)
             annotations = cursor.fetchall()
+            print(type(annotations))
     except sqlite3.Error as e:
         logging.error(f"Database error: {e}")
         raise
@@ -113,17 +171,23 @@ def export_annotations(asset_id: str, format: str, book_title: str) -> str:
     filename = f"highlights.{format.lower()}"
 
     try:
+        annotations_dict = {"Highlight": [highlight.replace("\n", " ") for highlight, _, _ in annotations],
+                            "Notes": [note.replace("\n", " ") if note else "" for _, note, _ in annotations],
+                            "Locations": [location for _, _, location in annotations]}
+        sorted_locations = sort_epubcfi(annotations_dict["Locations"])
+        sorted_annotations = [(highlight, note, location) for location in sorted_locations for highlight, note, loc in zip(annotations_dict["Highlight"], annotations_dict["Notes"], annotations_dict["Locations"]) if loc == location]
         if format.lower() == 'csv':
             with open(filename, 'w', newline='') as csvfile:
-                writer = csv.DictWriter(csvfile, fieldnames=["Highlight", "Notes"], delimiter=";")
+                writer = csv.DictWriter(csvfile, fieldnames=["Highlight", "Notes", "Locations"], delimiter=";")
                 writer.writeheader()
                 writer.writerows({"Highlight": highlight.replace("\n", " "),
-                                  "Notes": note.replace("\n", " ") if note else ""}
-                                 for highlight, note in annotations)
+                                  "Notes": note.replace("\n", " ") if note else "",
+                                  "Locations": location}
+                                 for highlight, note, location in sorted_annotations)
         else:  # markdown
             ##with open(filename, 'w') as mdfile:
             output_markdown = ""
-            for highlight, note in annotations:
+            for highlight, note, location in sorted_annotations:
                 output_markdown += "\n".join([f"> {line}" for line in highlight.split("\n")])
                 output_markdown += f"\n\n"
                 if note:
