@@ -2,6 +2,8 @@
 
 A simple command-line tool to export highlights and notes from Apple Books on macOS.
 
+Uses central processing from [apple-books-highlights](https://github.com/jladicos/apple-books-highlights).
+
 ## Features
 
 - Exports highlights and notes from Apple Books
