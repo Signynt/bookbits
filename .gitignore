@@ -2,3 +2,8 @@ highlights.*
 .DS_Store
 highlights_2.csv
 highlights_sorted.csv
+.python-version
+pyproject.toml
+uv.lock
+apple_books_highlights/__init__.py
+apple_books_highlights/__pycache__

@@ -279,7 +279,9 @@ def content(annotations, export_titles) -> str:
                 current_chapter = extracted_title
 
             text_without_excess_spaces = re.sub(r'\s{2,}', ' ', anno.selected_text)
-            text_with_blockquote = '> ' + text_without_excess_spaces.replace('\n', '\n> ')
+            text_with_normal_quotes = re.sub(r'“|”|«|»|„', '"', text_without_excess_spaces)
+            text_with_normal_quotes = re.sub(r'‘|’', "'", text_with_normal_quotes)
+            text_with_blockquote = '> ' + text_with_normal_quotes.replace('\n', '\n> ')
             md += f"{text_with_blockquote}\n\n"
         if anno.note is not None:
             md += f"{anno.note}\n\n"
