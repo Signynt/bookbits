@@ -275,7 +275,13 @@ def content(annotations, export_titles) -> str:
                 extracted_title = extract_chapter_title(anno.location)
                 if extracted_title != current_chapter:
                     if extracted_title != '':
-                        md += f"# {extracted_title}\n"
+                        # Remove underscores with spaces
+                        extracted_title_header = re.sub(r'_', ' ', extracted_title)
+                        # Remove any double whitespaces from the title
+                        extracted_title_header = re.sub(r'\s{2,}', ' ', extracted_title_header)
+                        # Remove leading 0s from numbers in the title
+                        extracted_title_header = re.sub(r'\b0+(\d)', r'\1', extracted_title_header)
+                        md += f"## {extracted_title_header}\n"
                 current_chapter = extracted_title
 
             text_without_excess_spaces = re.sub(r'\s{2,}', ' ', anno.selected_text)
